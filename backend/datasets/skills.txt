@@ -1,0 +1,36 @@
+Python
+Java
+C++
+JavaScript
+SQL
+HTML
+CSS
+React
+Node.js
+FastAPI
+Flask
+Django
+TensorFlow
+PyTorch
+Scikit-learn
+Pandas
+NumPy
+OpenCV
+Docker
+Git
+GitHub
+AWS
+Azure
+MongoDB
+MySQL
+PostgreSQL
+Linux
+Machine Learning
+Deep Learning
+NLP
+Computer Vision
+LLM
+LangChain
+Streamlit
+Power BI
+Excel
