@@ -12,3 +12,4 @@ google-generativeai
 openai
 pypdf
 python-docx
+scikit-learn
