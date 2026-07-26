@@ -1,15 +1,23 @@
-from sentence_transformers import SentenceTransformer
+from sklearn.feature_extraction.text import TfidfVectorizer
 from sklearn.metrics.pairwise import cosine_similarity
-
-model = SentenceTransformer("all-MiniLM-L6-v2")
 
 
 def semantic_similarity(resume_text: str, jd_text: str):
-    embeddings = model.encode([resume_text, jd_text])
+
+    if not resume_text or not jd_text:
+        return 0
+
+    vectorizer = TfidfVectorizer(
+        stop_words="english"
+    )
+
+    tfidf_matrix = vectorizer.fit_transform(
+        [resume_text, jd_text]
+    )
 
     score = cosine_similarity(
-        [embeddings[0]],
-        [embeddings[1]]
+        tfidf_matrix[0:1],
+        tfidf_matrix[1:2]
     )[0][0]
 
-    return round(score * 100, 2)
+    return round(float(score) * 100, 2)

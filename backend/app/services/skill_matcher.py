@@ -1,26 +1,13 @@
-from sentence_transformers import SentenceTransformer
-from sklearn.metrics.pairwise import cosine_similarity
-
-model = SentenceTransformer("all-MiniLM-L6-v2")
-
-
 def match_skills(resume_skills, job_skills):
-    """
-    Returns similarity score between resume skills and job skills.
-    """
 
-    if len(resume_skills) == 0 or len(job_skills) == 0:
+    if not resume_skills or not job_skills:
         return 0
 
-    resume_text = " ".join(resume_skills)
-    job_text = " ".join(job_skills)
+    resume_set = {skill.lower() for skill in resume_skills}
+    job_set = {skill.lower() for skill in job_skills}
 
-    resume_embedding = model.encode([resume_text])
-    job_embedding = model.encode([job_text])
+    matched_skills = resume_set.intersection(job_set)
 
-    score = cosine_similarity(
-        resume_embedding,
-        job_embedding
-    )[0][0]
+    score = (len(matched_skills) / len(job_set)) * 100
 
-    return round(float(score) * 100, 2)
+    return round(score, 2)
