@@ -5,8 +5,10 @@ import plotly.graph_objects as go
 from dashboard import show_dashboard
 from interview import show_interview
 from report import show_report
+import os
 
-BACKEND_URL = "http://127.0.0.1:8000"
+
+BACKEND_URL = os.getenv("BACKEND_URL", "https://interviewiq-ai-1-of73.onrender.com")
 
 # -------------------------------------------------------
 # Page Config
