@@ -15,15 +15,6 @@ from report import show_report
 BACKEND_URL = os.getenv("BACKEND_URL", "https://interviewiq-ai-1-of73.onrender.com")
 BACKEND_URL = BACKEND_URL.strip("[]()'\" ").rstrip("/")
 
-def show_interview(extracted_skills):
-    # ... inside your function where questions are requested:
-    
-    # Ensure requests use the live BACKEND_URL variable instead of http://127.0.0.1:8000
-    response = requests.post(
-        f"{BACKEND_URL}/interview/questions",
-        json={"skills": extracted_skills}
-    )
-
 # -------------------------------------------------------
 # Page Config
 # -------------------------------------------------------
