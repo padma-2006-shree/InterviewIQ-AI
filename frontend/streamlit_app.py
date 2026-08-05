@@ -1,14 +1,20 @@
-import streamlit as st
+import os
 import requests
 import plotly.express as px
 import plotly.graph_objects as go
+import streamlit as st
+
 from dashboard import show_dashboard
 from interview import show_interview
 from report import show_report
-import os
 
+# -------------------------------------------------------
+# Environment Setup & Base Config
+# -------------------------------------------------------
 
 BACKEND_URL = os.getenv("BACKEND_URL", "https://interviewiq-ai-1-of73.onrender.com")
+# Strip unwanted brackets, quotes, spaces, or trailing slashes
+BACKEND_URL = BACKEND_URL.strip("[]()'\" ").rstrip("/")
 
 # -------------------------------------------------------
 # Page Config
@@ -100,7 +106,7 @@ st.markdown("### AI Resume Analyzer & Interview Assistant")
 st.divider()
 
 # -------------------------------------------------------
-# Upload
+# Upload File Component
 # -------------------------------------------------------
 
 uploaded_file = st.file_uploader(
@@ -109,7 +115,7 @@ uploaded_file = st.file_uploader(
 )
 
 # -------------------------------------------------------
-# Resume Upload
+# Resume Upload Processing
 # -------------------------------------------------------
 
 if uploaded_file:
@@ -117,26 +123,36 @@ if uploaded_file:
     files = {
         "file": (
             uploaded_file.name,
-            uploaded_file,
+            uploaded_file.getvalue(),
             uploaded_file.type
         )
     }
 
+    response_data = None
+
     with st.spinner("🔍 Analyzing Resume..."):
+        try:
+            response = requests.post(
+                f"{BACKEND_URL}/resume/upload",
+                files=files,
+                timeout=60
+            )
 
-        response = requests.post(
-            f"{BACKEND_URL}/resume/upload",
-            files=files
-        )
+            if response.status_code == 200:
+                response_data = response.json()
+                st.session_state.resume_data = response_data
+                st.success("✅ Resume Uploaded Successfully!")
+            else:
+                st.error(f"Failed to analyze resume. Server returned status code: {response.status_code}")
 
-    if response.status_code == 200:
+        except requests.exceptions.RequestException as e:
+            st.error(f"Could not connect to backend server at `{BACKEND_URL}`. Error details: {e}")
 
-        data = response.json()
-        st.session_state.resume_data = data
-        st.success("✅ Resume Uploaded Successfully!")
-        
+    if response_data:
+        data = response_data
+
         # ---------------------------------------------------
-        # ATS Score API
+        # ATS Score Calculation
         # ---------------------------------------------------
 
         job_description = """
@@ -149,90 +165,88 @@ React
 REST API
 """
 
+        score = 0
+        matched = []
+        missing = []
+
         with st.spinner("📈 Calculating ATS Score..."):
+            try:
+                ats_response = requests.post(
+                    f"{BACKEND_URL}/ats/score",
+                    json={
+                        "resume_text": data.get("resume_text", ""),
+                        "job_description": job_description
+                    },
+                    timeout=30
+                )
 
-            ats_response = requests.post(
-                f"{BACKEND_URL}/ats/score",
-                json={
-                    "resume_text": data["resume_text"],
-                    "job_description": job_description
-                }
-            )
+                if ats_response.status_code == 200:
+                    ats = ats_response.json()
+                    score = ats.get("score", 0)
+                    matched = ats.get("matched_skills", [])
+                    missing = ats.get("missing_skills", [])
+                else:
+                    st.error("Failed to calculate ATS Score from server.")
 
-        if ats_response.status_code == 200:
-
-            ats = ats_response.json()
-
-            score = ats["score"]
-            matched = ats["matched_skills"]
-            missing = ats["missing_skills"]
-
-        else:
-
-            score = 0
-            matched = []
-            missing = []
-
-            st.error("Failed to calculate ATS Score")
+            except requests.exceptions.RequestException:
+                st.error("Unable to calculate ATS Score due to a connection error.")
 
         # ---------------------------------------------------
-        # Dashboard
+        # Candidate Profile & ATS Score Gauges
         # ---------------------------------------------------
 
-        left, right = st.columns([2,1])
+        left, right = st.columns([2, 1])
 
         with left:
-
             st.subheader("👤 Candidate Profile")
-
-            st.info(f"👤 **Name:** {data['resume']['name']}")
-            st.info(f"📧 **Email:** {data['resume']['email']}")
-            st.info(f"📱 **Phone:** {data['resume']['phone']}")
+            resume_info = data.get("resume", {})
+            st.info(f"👤 **Name:** {resume_info.get('name', 'N/A')}")
+            st.info(f"📧 **Email:** {resume_info.get('email', 'N/A')}")
+            st.info(f"📱 **Phone:** {resume_info.get('phone', 'N/A')}")
 
         with right:
-
             st.subheader("📊 ATS Score")
 
             gauge = go.Figure(go.Indicator(
                 mode="gauge+number",
                 value=score,
-                title={"text":"ATS Score"},
+                title={"text": "ATS Score"},
                 gauge={
-                    "axis":{"range":[0,100]},
-                    "bar":{"color":"green"},
-                    "steps":[
-                        {"range":[0,50],"color":"#ffcccc"},
-                        {"range":[50,80],"color":"#fff4cc"},
-                        {"range":[80,100],"color":"#d4edda"}
+                    "axis": {"range": [0, 100]},
+                    "bar": {"color": "green"},
+                    "steps": [
+                        {"range": [0, 50], "color": "#ffcccc"},
+                        {"range": [50, 80], "color": "#fff4cc"},
+                        {"range": [80, 100], "color": "#d4edda"}
                     ]
                 }
             ))
 
             st.plotly_chart(gauge, use_container_width=True)
-
-            st.progress(score/100)
+            st.progress(score / 100)
 
             if score >= 80:
                 st.success("🌟 Excellent Resume")
-
             elif score >= 60:
                 st.warning("👍 Good Resume")
-
             else:
                 st.error("⚠ Needs Improvement")
 
         st.divider()
 
         # ---------------------------------------------------
-        # Skills
+        # Extracted Skills Grid
         # ---------------------------------------------------
 
         st.subheader("💻 Extracted Skills")
+        extracted_skills = resume_info.get("skills", [])
 
-        cols = st.columns(4)
-
-        for i, skill in enumerate(data["resume"]["skills"]):
-            cols[i % 4].success(skill)
+        if extracted_skills:
+            cols = st.columns(4)
+            for i, skill in enumerate(extracted_skills):
+                cols[i % 4].success(skill)
+        else:
+            st.info("No skills detected in resume.")
 
         st.divider()
 
@@ -240,26 +254,26 @@ REST API
         # Skill Chart
         # ---------------------------------------------------
 
-        st.subheader("📊 Resume Skill Distribution")
+        if extracted_skills:
+            st.subheader("📊 Resume Skill Distribution")
 
-        chart = {
-            "Skill": data["resume"]["skills"],
-            "Count": [1]*len(data["resume"]["skills"])
-        }
+            chart_data = {
+                "Skill": extracted_skills,
+                "Count": [1] * len(extracted_skills)
+            }
 
-        fig = px.bar(
-            chart,
-            x="Skill",
-            y="Count",
-            color="Skill",
-            title="Skills Extracted From Resume"
-        )
+            fig = px.bar(
+                chart_data,
+                x="Skill",
+                y="Count",
+                color="Skill",
+                title="Skills Extracted From Resume"
+            )
 
-        fig.update_layout(showlegend=False)
+            fig.update_layout(showlegend=False)
+            st.plotly_chart(fig, use_container_width=True)
 
-        st.plotly_chart(fig, use_container_width=True)
-
-        st.divider()
+            st.divider()
 
         # ---------------------------------------------------
         # Matched & Missing Skills
@@ -268,35 +282,28 @@ REST API
         c1, c2 = st.columns(2)
 
         with c1:
-
             st.subheader("✅ Matched Skills")
-
             if matched:
-
                 for skill in matched:
                     st.success(skill)
-
             else:
-
                 st.info("No Matched Skills")
 
         with c2:
-
             st.subheader("❌ Missing Skills")
-
             if missing:
-
                 for skill in missing:
                     st.warning(skill)
-
             else:
-
                 st.success("No Missing Skills 🎉")
 
-        
         st.divider()
-        show_interview(data["resume"]["skills"])
 
+        # ---------------------------------------------------
+        # Interactive Interview Section
+        # ---------------------------------------------------
+
+        show_interview(extracted_skills)
 
 # -------------------------------------------------------
 # Footer
@@ -305,13 +312,8 @@ REST API
 st.markdown(
     """
     <center>
-
-    <h4 style='color:#2563EB'>
-    🚀 InterviewIQ AI
-    </h4>
-
+    <h4 style='color:#2563EB'>🚀 InterviewIQ AI</h4>
     Built with ❤️ using FastAPI • Streamlit • OpenRouter • NLP
-
     </center>
     """,
     unsafe_allow_html=True
