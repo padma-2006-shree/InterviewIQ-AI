@@ -220,6 +220,14 @@ python tests/test_api.py
 
 ## 🌐 Deployment
 
+### Deploying the Backend on Vercel
+1. Import your GitHub repository into [Vercel](https://vercel.com).
+2. Vercel automatically detects the Python configuration via `vercel.json` and `pyproject.toml`.
+3. In **Environment Variables**, add:
+   - `OPENROUTER_API_KEY`: your OpenRouter API key (optional, fallbacks enabled).
+   - `SECRET_KEY`: your JWT secret key.
+4. Click **Deploy**. Your FastAPI backend is live with serverless auto-scaling!
+
 ### Deploying the Backend on Render
 1. Create a new **Web Service** on [Render](https://render.com).
 2. Set Root Directory to `backend`.
@@ -232,7 +240,7 @@ python tests/test_api.py
 2. Set Main file path: `frontend/streamlit_app.py`.
 3. In App Settings -> Secrets, add:
    ```toml
-   BACKEND_URL = "https://your-backend-service.onrender.com"
+   BACKEND_URL = "https://your-backend-service.vercel.app"
    ```
 
 ---

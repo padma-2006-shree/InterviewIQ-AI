@@ -1,7 +1,14 @@
+import os
 from sqlalchemy import create_engine
 from sqlalchemy.orm import declarative_base, sessionmaker
 
-DATABASE_URL = "sqlite:///./interviewiq.db"
+# On Vercel serverless functions, the root filesystem is read-only; use /tmp for SQLite
+if os.getenv("VERCEL"):
+    default_db_url = "sqlite:////tmp/interviewiq.db"
+else:
+    default_db_url = "sqlite:///./interviewiq.db"
+
+DATABASE_URL = os.getenv("DATABASE_URL", default_db_url)
 
 engine = create_engine(
     DATABASE_URL,

@@ -7,9 +7,17 @@ from app.services.resume_parser import parse_resume
 
 router = APIRouter(prefix="/resume", tags=["Resume"])
 
-BASE_DIR = Path(__file__).resolve().parent.parent.parent
-UPLOAD_FOLDER = BASE_DIR / "uploads"
-UPLOAD_FOLDER.mkdir(parents=True, exist_ok=True)
+# On Vercel serverless environments, use /tmp which is the only writable directory
+if os.getenv("VERCEL"):
+    UPLOAD_FOLDER = Path("/tmp/uploads")
+else:
+    BASE_DIR = Path(__file__).resolve().parent.parent.parent
+    UPLOAD_FOLDER = BASE_DIR / "uploads"
+
+try:
+    UPLOAD_FOLDER.mkdir(parents=True, exist_ok=True)
+except Exception:
+    pass
 
 ALLOWED_EXTENSIONS = {".pdf", ".docx", ".doc", ".txt"}
 
