@@ -1,0 +1,4 @@
+# Root dependencies for InterviewIQ AI
+-r backend/requirements.txt
+streamlit>=1.30.0
+plotly>=5.18.0

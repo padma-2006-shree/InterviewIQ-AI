@@ -1,31 +1,54 @@
 import os
+from pathlib import Path
+from fastapi import APIRouter, UploadFile, File, HTTPException
 
-from fastapi import APIRouter, UploadFile, File
-
-from app.services.pdf_parser import extract_text_from_pdf
+from app.services.pdf_parser import extract_text_from_file
 from app.services.resume_parser import parse_resume
 
 router = APIRouter(prefix="/resume", tags=["Resume"])
 
-UPLOAD_FOLDER = "uploads"
+BASE_DIR = Path(__file__).resolve().parent.parent.parent
+UPLOAD_FOLDER = BASE_DIR / "uploads"
+UPLOAD_FOLDER.mkdir(parents=True, exist_ok=True)
 
-os.makedirs(UPLOAD_FOLDER, exist_ok=True)
+ALLOWED_EXTENSIONS = {".pdf", ".docx", ".doc", ".txt"}
 
 
 @router.post("/upload")
 async def upload_resume(file: UploadFile = File(...)):
+    if not file.filename:
+        raise HTTPException(status_code=400, detail="No file provided")
 
-    file_path = os.path.join(UPLOAD_FOLDER, file.filename)
+    ext = os.path.splitext(file.filename)[1].lower()
+    if ext not in ALLOWED_EXTENSIONS:
+        raise HTTPException(
+            status_code=400,
+            detail=f"Unsupported file format '{ext}'. Allowed formats: {', '.join(ALLOWED_EXTENSIONS)}"
+        )
 
-    with open(file_path, "wb") as f:
-        f.write(await file.read())
+    file_path = UPLOAD_FOLDER / file.filename
 
-    text = extract_text_from_pdf(file_path)
+    try:
+        content = await file.read()
+        with open(file_path, "wb") as f:
+            f.write(content)
 
-    parsed = parse_resume(text)
+        text = extract_text_from_file(str(file_path))
 
-    return {
-        "filename": file.filename,
-        "resume": parsed,
-        "resume_text": text
-    }
+        if not text or text.strip() == "":
+            raise HTTPException(
+                status_code=400,
+                detail="Could not extract readable text from the uploaded document. Please check the file."
+            )
+
+        parsed = parse_resume(text)
+
+        return {
+            "filename": file.filename,
+            "resume": parsed,
+            "resume_text": text
+        }
+    except HTTPException:
+        raise
+    except Exception as e:
+        raise HTTPException(status_code=500, detail=f"Failed to process resume: {str(e)}")
