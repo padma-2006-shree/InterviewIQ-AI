@@ -1,11 +1,17 @@
 import re
 from pathlib import Path
-import spacy
 
+# Optional spaCy NER for name extraction
+nlp = None
 try:
+    import spacy
     nlp = spacy.load("en_core_web_sm")
 except Exception:
-    nlp = spacy.blank("en")
+    try:
+        import spacy
+        nlp = spacy.blank("en")
+    except Exception:
+        nlp = None
 
 
 # ---------------- EMAIL ----------------
@@ -51,14 +57,15 @@ def extract_name(text: str) -> str:
         if 2 <= len(words) <= 4:
             return line.title()
 
-    # Fallback to spaCy NER
-    try:
-        doc = nlp(text[:1000])
-        for ent in doc.ents:
-            if ent.label_ == "PERSON" and len(ent.text.split()) >= 2:
-                return ent.text.strip().title()
-    except Exception:
-        pass
+    # Fallback to spaCy NER if available
+    if nlp is not None:
+        try:
+            doc = nlp(text[:1000])
+            for ent in doc.ents:
+                if ent.label_ == "PERSON" and len(ent.text.split()) >= 2:
+                    return ent.text.strip().title()
+        except Exception:
+            pass
 
     return ""
 
